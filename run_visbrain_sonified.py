@@ -20,10 +20,12 @@ from visbrain.gui import Sleep
 
 
 # Open the GUI :
-# Sleep(data='sleep-900.edf', config_file = "config.json", hypno="sleep-900_hypno.txt").show()
+Sleep(data='test_files/sleep-900.edf', config_file = "test_files/sleep-900_config.json", hypno="test_files/sleep-900_hypno.txt").show()
 
 
-Sleep(data='1.rec', config_file="config_1.json").show()
+
+
+# Sleep(data='1.rec', config_file="config_1.json").show()
 
 
 
