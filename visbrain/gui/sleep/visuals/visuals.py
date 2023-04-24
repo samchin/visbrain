@@ -5,11 +5,17 @@ hypnogram, indicator, shortcuts)
 """
 import numpy as np
 import scipy.signal as scpsig
+import scipy.io as scpio
+
 import itertools
 import logging
 
 from vispy import scene
 import vispy.visuals.transforms as vist
+import sys
+
+import sounddevice as sd
+np.set_printoptions(threshold=sys.maxsize)
 
 from .marker import Markers
 from visbrain.utils import (color2vb, PrepareData, cmap_to_glsl)
@@ -214,6 +220,7 @@ class Detection(object):
             self[k]['index'] = np.array([])
 
 
+
 class ChannelPlot(PrepareData):
     """Plot each channel."""
 
@@ -297,6 +304,8 @@ class ChannelPlot(PrepareData):
         """Return the number of channels."""
         return len(self.mesh)
 
+
+
     def set_data(self, sf, data, time, sl=None, ylim=None, autoamp=True):
         """Set data to channels.
 
@@ -342,6 +351,92 @@ class ChannelPlot(PrepareData):
 
             # Concatenate time / data / z axis :
             dat = np.vstack((time_sl, datchan, z)).T
+
+
+            ############################################################################################
+
+            sound_data = dat[:,1] * 0.05
+
+            # print(dat[:,0])
+            # print("-----------------------------------------------------------------------------")
+            # print(dat[:,1])
+            # print("-----------------------------------------------------------------------------")
+            # print(dat[:,2])
+            # print("-----------------------------------------------------------------------------")
+
+            # # sound_data = dat * 0.05
+
+            # print(dat.shape)
+
+
+            def clippy(sound_data, a_max):
+
+                clipped_data = np.zeros_like(sound_data)
+                np.clip(sound_data, a_min = None, a_max= a_max, out=clipped_data)
+                return clipped_data
+                
+
+            def no_static(sound_data, slope):
+                old_shape = sound_data.shape
+                old_size = sound_data.shape[0]
+                first_value = sound_data[0]
+                last_value = sound_data[sound_data.shape[0]-1]
+
+                
+                num_l_pad = np.abs(int(first_value*slope))
+                num_r_pad = np.abs(int(last_value*slope))
+                l_pad = np.linspace(0, sound_data[0], num = num_l_pad)
+                r_pad = np.linspace(last_value, 0, num = num_r_pad)
+                
+
+                new_shape = (int(l_pad.shape[0] + old_size + r_pad.shape[0]),  )
+                new_data = np.zeros(new_shape)
+            
+                new_data[l_pad.shape[0]:(old_size+l_pad.shape[0])] = sound_data
+                new_data[0:l_pad.shape[0]] = l_pad
+                new_data[(old_size+l_pad.shape[0]):new_shape[0]] = r_pad
+                    
+                return new_data 
+                 
+
+            # def lpf(sound_data, fs, low_cutoff_freq, high_cutoff_freq):
+            #     b, a = scpsig.butter(N = 2, Wn = (low_cutoff_freq, high_cutoff_freq), btype='bandpass', analog = False, output='ba', fs = fs)
+            #     y = scpsig.lfilter(b, a, sound_data)
+            #     return y
+
+            # sample_rate =  44100
+            # lo_cutoff = .75
+            # cutoff = 20000 # SAM Rate
+
+            # data_lpf = lpf(sound_data, sample_rate, lo_cutoff, cutoff)
+            # sample_rate =  44100
+            # cutoff = 16000 # SAM Rate 
+            clip_data = clippy(sound_data, 20)
+
+
+                
+            # play_data = no_static(clippy(sound_data, 10), 100)
+            play_data = no_static(sound_data, 100)
+
+            old_min = play_data[np.argmin(play_data)]
+            old_max = play_data[np.argmax(play_data)]
+
+            new_min = -1
+            new_max = 1
+
+
+            # Map values from the original range to the new range
+            remapped_data = np.float32(no_static(((play_data - old_min) * (new_max - new_min) / (old_max - old_min) + new_min), 100))
+
+
+            scpio.wavfile.write("whee.wav", rate=44100, data = remapped_data)
+            
+
+
+            sd.play(play_data, samplerate=2205)
+
+
+            ############################################################################################
 
             # Set main ligne :
             k.set_data(dat, width=self.width)
