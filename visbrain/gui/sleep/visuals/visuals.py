@@ -351,6 +351,8 @@ class ChannelPlot(PrepareData):
                 to_chan = chan_lst_viz.index(self._preproc_channel)
                 data_sl[[to_chan], :] = self._prepare_data(sf, data_sl[
                     [to_chan], :].copy(), time_sl)
+            
+        # print(data_sl.shape)
 
         # Set data to each plot :
         for l, (i, k) in enumerate(self):
@@ -360,11 +362,11 @@ class ChannelPlot(PrepareData):
 
             # Concatenate time / data / z axis :
             dat = np.vstack((time_sl, datchan, z)).T
-
-
             ############################################################################################
-
+        
             sound_data = dat[:,1] * 0.05
+            # print(data)
+            # print(sound_data[0:20])
 
             # print(dat[:,0])
             # print("-----------------------------------------------------------------------------")
@@ -414,7 +416,7 @@ class ChannelPlot(PrepareData):
                 return y
 
      
-            # clip_data = clippy(sound_data, 20)
+            # ilip_data = clippy(sound_data, 20)
 
                 
             # play_data = no_static(clippy(sound_data, 10), 100)
@@ -440,10 +442,11 @@ class ChannelPlot(PrepareData):
             time_slice = time_sl[0]
             # scpio.wavfile.write("outputs/%d.wav" % time_slice, rate=2205, data = data_lpf)
 
-            sd.play(remapped_data, samplerate=2205)
 
-
-            soundfile.write("outputs/%d.wav" % time_slice, remapped_data, samplerate=2205)
+            if l == 3: 
+                print('----') 
+                sd.play(remapped_data, samplerate=2205)
+                soundfile.write("outputs/%d.wav" % time_slice, remapped_data, samplerate=2205)
 
 
 
