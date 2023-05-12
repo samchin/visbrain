@@ -6,10 +6,11 @@ hypnogram, indicator, shortcuts)
 import numpy as np
 import scipy.signal as scpsig
 import scipy.io as scpio
+import soundfile 
 
 import itertools
 import logging
-
+import time as tme
 from vispy import scene
 import vispy.visuals.transforms as vist
 import sys
@@ -22,8 +23,12 @@ from visbrain.utils import (color2vb, PrepareData, cmap_to_glsl)
 from visbrain.utils.sleep.event import _index_to_events
 from visbrain.visuals import TopoMesh, TFmapsMesh
 from visbrain.config import PROFILER
+from visbrain.io import rw_config
+from visbrain.utils import ScreenshotPopup
 
+import pyautogui 
 logger = logging.getLogger('visbrain')
+
 
 __all__ = ("Visuals")
 
@@ -294,6 +299,9 @@ class ChannelPlot(PrepareData):
                                            visible=True)
             self.scorwin_ind.append(scorwin_ind)
 
+
+   
+
     def __iter__(self):
         """Iterate over visible mesh."""
         for i, k in enumerate(self.mesh):
@@ -331,6 +339,7 @@ class ChannelPlot(PrepareData):
         self.x = (time_sl.min(), time_sl.max())
         data_sl = data[self.visible, sl]
         z = np.full_like(time_sl, .5, dtype=np.float32)
+
 
         # Prepare the data (only if needed) :
         if self:
@@ -395,28 +404,23 @@ class ChannelPlot(PrepareData):
                 new_data[l_pad.shape[0]:(old_size+l_pad.shape[0])] = sound_data
                 new_data[0:l_pad.shape[0]] = l_pad
                 new_data[(old_size+l_pad.shape[0]):new_shape[0]] = r_pad
-                    
+
                 return new_data 
                  
 
-            # def lpf(sound_data, fs, low_cutoff_freq, high_cutoff_freq):
-            #     b, a = scpsig.butter(N = 2, Wn = (low_cutoff_freq, high_cutoff_freq), btype='bandpass', analog = False, output='ba', fs = fs)
-            #     y = scpsig.lfilter(b, a, sound_data)
-            #     return y
+            def lpf(sound_data, fs, high_cutoff_freq):
+                b, a = scpsig.butter(N = 3, Wn = (high_cutoff_freq), btype='lowpass', analog = False, output='ba', fs = fs)
+                y = scpsig.lfilter(b, a, sound_data)
+                return y
 
-            # sample_rate =  44100
-            # lo_cutoff = .75
-            # cutoff = 20000 # SAM Rate
-
-            # data_lpf = lpf(sound_data, sample_rate, lo_cutoff, cutoff)
-            # sample_rate =  44100
-            # cutoff = 16000 # SAM Rate 
-            clip_data = clippy(sound_data, 20)
-
+     
+            # clip_data = clippy(sound_data, 20)
 
                 
             # play_data = no_static(clippy(sound_data, 10), 100)
-            play_data = no_static(sound_data, 100)
+            play_data = no_static(sound_data, 10)
+            # play_data = sound_data
+
 
             old_min = play_data[np.argmin(play_data)]
             old_max = play_data[np.argmax(play_data)]
@@ -426,14 +430,21 @@ class ChannelPlot(PrepareData):
 
 
             # Map values from the original range to the new range
-            remapped_data = np.float32(no_static(((play_data - old_min) * (new_max - new_min) / (old_max - old_min) + new_min), 100))
+            remapped_data = np.float32(((play_data - old_min) * (new_max - new_min) / (old_max - old_min) + new_min))
 
 
-            scpio.wavfile.write("whee.wav", rate=44100, data = remapped_data)
-            
+            sample_rate = 44100
+            cutoff = 20000 # SAM Rate
+            # data_lpf = no_static(clippy(lpf(remapped_data, sample_rate, cutoff), 40), 100)
+            data_lpf = play_data
+            time_slice = time_sl[0]
+            # scpio.wavfile.write("outputs/%d.wav" % time_slice, rate=2205, data = data_lpf)
+
+            sd.play(remapped_data, samplerate=2205)
 
 
-            sd.play(play_data, samplerate=2205)
+            soundfile.write("outputs/%d.wav" % time_slice, remapped_data, samplerate=2205)
+
 
 
             ############################################################################################
@@ -451,6 +462,9 @@ class ChannelPlot(PrepareData):
             self._camera[i].rect = rect
             k.update()
             self.rect.append(rect)
+
+
+
 
     def set_location(self, sf, data, channel, start, end, factor=100.):
         """Set vertical lines for detections."""
@@ -1063,6 +1077,12 @@ class CanvasShortcuts(object):
             elif event.text.lower() == 'n':  # Next (slider)
                 self._SlGoto.setValue(
                     self._SlGoto.value() + self._SigSlStep.value())
+                time_slice = (self._SlGoto.value() - self._SigSlStep.value())
+                # print(time_slice)
+                tme.sleep(1)
+                pyautogui.screenshot("outputs/%d.png" % (time_slice))
+                
+ 
             elif event.text.lower() == 'b':  # Before (slider)
                 self._SlGoto.setValue(
                     self._SlGoto.value() - self._SigSlStep.value())
@@ -1238,7 +1258,7 @@ class Visuals(CanvasShortcuts):
                                  parent=self._chanCanvas,
                                  fcn=self._fcn_slider_move)
         PROFILER('Channels', level=1)
-
+        
         # =================== SPECTROGRAM ===================
         # Create a spectrogram object :
         self._spec = Spectrogram(camera=cameras[1],
@@ -1289,3 +1309,5 @@ class Visuals(CanvasShortcuts):
             CanvasShortcuts.__init__(self, k.canvas)
         self._shpopup.set_shortcuts(self.sh)
         PROFILER('Shortcuts', level=1)
+
+   

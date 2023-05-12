@@ -25,7 +25,7 @@ Sleep(data='test_files/sleep-900.edf', config_file = "test_files/sleep-900_confi
 
 
 
-# Sleep(data='1.rec', config_file="config_1.json").show()
+# Sleep(data='test_files/1.rec', config_file="test_files/config_1.json").show()
 
 
 
