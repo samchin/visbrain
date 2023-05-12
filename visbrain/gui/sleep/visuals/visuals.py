@@ -7,13 +7,18 @@ import numpy as np
 import scipy.signal as scpsig
 import scipy.io as scpio
 import soundfile 
+import vispy.io as io
 
 import itertools
 import logging
 import time as tme
 from vispy import scene
+from vispy.scene import visuals
 import vispy.visuals.transforms as vist
 import sys
+
+import threading
+import time as tm
 
 import sounddevice as sd
 np.set_printoptions(threshold=sys.maxsize)
@@ -25,6 +30,8 @@ from visbrain.visuals import TopoMesh, TFmapsMesh
 from visbrain.config import PROFILER
 from visbrain.io import rw_config
 from visbrain.utils import ScreenshotPopup
+
+import visbrain.utils.dumbhack as dumbhack
 
 import pyautogui 
 logger = logging.getLogger('visbrain')
@@ -235,6 +242,8 @@ class ChannelPlot(PrepareData):
         # Initialize PrepareData :
         PrepareData.__init__(self, axis=1)
 
+        self._canvas = parent
+
         # Variables :
         self._camera = camera
         self._preproc_channel = -1
@@ -298,9 +307,7 @@ class ChannelPlot(PrepareData):
                                            name=k + '_scorwin_ind',
                                            visible=True)
             self.scorwin_ind.append(scorwin_ind)
-
-
-   
+      
 
     def __iter__(self):
         """Iterate over visible mesh."""
@@ -444,7 +451,14 @@ class ChannelPlot(PrepareData):
 
 
             if l == 3: 
-                print('----') 
+                print('----')
+                # print(k.parent.parent.parent.parent)#parent_chain()) 
+                # img = k.parent.parent.parent.parent.canvas.SceneCanvas.render()
+                # print(self.parent_chain())
+                # img = k.scene_node.canvas.parent#render()
+                # print(img)
+                # io.write_png("wonderful.png",img)
+
                 sd.play(remapped_data, samplerate=2205)
                 soundfile.write("outputs/%d.wav" % time_slice, remapped_data, samplerate=2205)
 
@@ -466,6 +480,8 @@ class ChannelPlot(PrepareData):
             k.update()
             self.rect.append(rect)
 
+        img = dumbhack.changrid.parentWidget().grab().toImage()
+        img.save('not_wonderful.png', 'PNG')
 
 
 
@@ -515,6 +531,7 @@ class ChannelPlot(PrepareData):
         """Set parent value."""
         for i, k, in zip(value, self.mesh):
             k.parent = i.wc.scene
+            
 
     # ----------- AUTOAMP -----------
     @property

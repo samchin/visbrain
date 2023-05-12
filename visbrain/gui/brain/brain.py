@@ -17,6 +17,8 @@ from .user import BrainUserMethods
 from visbrain._pyqt_module import _PyQtModule
 from visbrain.config import PROFILER
 
+from visbrain.utils import dumbhack
+
 logger = logging.getLogger('visbrain')
 
 
@@ -96,6 +98,8 @@ class Brain(_PyQtModule, UiInit, UiElements, Visuals, BrainCbar,
         self._userobj = {}
         self._gl_scale = 100.  # fix appearance for small meshes
         self._camera = viscam.TurntableCamera(name='MainBrainCamera')
+
+
 
         # ====================== Canvas creation ======================
         UiInit.__init__(self, bgcolor)  # GUI creation + canvas

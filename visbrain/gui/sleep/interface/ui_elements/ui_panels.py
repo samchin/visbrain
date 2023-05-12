@@ -4,7 +4,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import numpy as np
 
 from ..ui_init import AxisCanvas, TimeAxis
-from visbrain.utils import mpl_cmap, color2vb
+from visbrain.utils import mpl_cmap, color2vb, dumbhack
 from visbrain.config import PROFILER
 from visbrain.io.dependencies import is_lspopt_installed
 
@@ -36,6 +36,8 @@ class UiPanels(object):
         self._chanGrid.setObjectName(_fromUtf8("_chanGrid"))
         self.gridLayout_21.addLayout(self._chanGrid, 0, 0, 1, 1)
         PROFILER("Channel grid", level=2)
+
+        dumbhack.changrid = self._chanGrid
 
         # =====================================================================
         # CHANNELS
