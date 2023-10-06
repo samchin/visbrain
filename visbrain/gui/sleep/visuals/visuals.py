@@ -460,6 +460,8 @@ class ChannelPlot(PrepareData):
                 # io.write_png("wonderful.png",img)
 
                 sd.play(remapped_data, samplerate=2205)
+                import os
+                os.makedirs('outputs', exist_ok=True)
                 soundfile.write("outputs/%d.wav" % time_slice, remapped_data, samplerate=2205)
 
 

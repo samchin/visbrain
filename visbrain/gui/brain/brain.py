@@ -17,7 +17,7 @@ from .user import BrainUserMethods
 from visbrain._pyqt_module import _PyQtModule
 from visbrain.config import PROFILER
 
-from visbrain.utils import dumbhack
+# from visbrain.utils import dumbhack
 
 logger = logging.getLogger('visbrain')
 
