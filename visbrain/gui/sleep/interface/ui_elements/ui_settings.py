@@ -266,15 +266,16 @@ class UiSettings(object):
         slmax = self._SlVal.maximum()
         win = self._SigWin.value()
         # Set minimum :
-        self._SlVal.setMinimum(self._time.min())
+        print(self._time.min())
+        self._SlVal.setMinimum(int(self._time.min()))
         # Set maximum :
         step = self._SigSlStep.value()
-        self._SlVal.setMaximum(((self._time.max() - win) / step) + 1)
-        self._SlVal.setTickInterval(step)
-        self._SlVal.setSingleStep(step)
-        self._SlGoto.setMaximum((self._time.max() - win))
+        self._SlVal.setMaximum(int((self._time.max() - win) / step) + 1)
+        self._SlVal.setTickInterval(int(step))
+        self._SlVal.setSingleStep(int(step))
+        self._SlGoto.setMaximum(int(self._time.max() - win))
         # Re-set slider value :
-        self._SlVal.setValue(sl * self._SlVal.maximum() / slmax)
+        self._SlVal.setValue(int(sl * self._SlVal.maximum() / slmax))
 
         if self._slOnStart:
             self._fcn_slider_move()
@@ -319,7 +320,7 @@ class UiSettings(object):
 
     def _fcn_slider_win_selection(self):
         """Move slider using window spin."""
-        self._SlVal.setValue(self._SlGoto.value() / self._SigSlStep.value())
+        self._SlVal.setValue(int(self._SlGoto.value() / self._SigSlStep.value()))
 
     def _fcn_slider_magnify(self):
         """Magnify signals."""

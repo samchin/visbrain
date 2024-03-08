@@ -5,19 +5,37 @@ hypnogram, indicator, shortcuts)
 """
 import numpy as np
 import scipy.signal as scpsig
+import scipy.io as scpio
+import soundfile 
+import vispy.io as io
+
 import itertools
 import logging
-
+import time as tme
 from vispy import scene
+from vispy.scene import visuals
 import vispy.visuals.transforms as vist
+import sys
+
+import threading
+import time as tm
+
+import sounddevice as sd
+np.set_printoptions(threshold=sys.maxsize)
 
 from .marker import Markers
 from visbrain.utils import (color2vb, PrepareData, cmap_to_glsl)
 from visbrain.utils.sleep.event import _index_to_events
 from visbrain.visuals import TopoMesh, TFmapsMesh
 from visbrain.config import PROFILER
+from visbrain.io import rw_config
+from visbrain.utils import ScreenshotPopup
 
+import visbrain.utils.dumbhack as dumbhack
+
+import pyautogui 
 logger = logging.getLogger('visbrain')
+
 
 __all__ = ("Visuals")
 
@@ -214,6 +232,7 @@ class Detection(object):
             self[k]['index'] = np.array([])
 
 
+
 class ChannelPlot(PrepareData):
     """Plot each channel."""
 
@@ -222,6 +241,8 @@ class ChannelPlot(PrepareData):
                  parent=None, fcn=None):
         # Initialize PrepareData :
         PrepareData.__init__(self, axis=1)
+
+        self._canvas = parent
 
         # Variables :
         self._camera = camera
@@ -286,6 +307,7 @@ class ChannelPlot(PrepareData):
                                            name=k + '_scorwin_ind',
                                            visible=True)
             self.scorwin_ind.append(scorwin_ind)
+      
 
     def __iter__(self):
         """Iterate over visible mesh."""
@@ -296,6 +318,8 @@ class ChannelPlot(PrepareData):
     def __len__(self):
         """Return the number of channels."""
         return len(self.mesh)
+
+
 
     def set_data(self, sf, data, time, sl=None, ylim=None, autoamp=True):
         """Set data to channels.
@@ -323,6 +347,7 @@ class ChannelPlot(PrepareData):
         data_sl = data[self.visible, sl]
         z = np.full_like(time_sl, .5, dtype=np.float32)
 
+
         # Prepare the data (only if needed) :
         if self:
             if self._preproc_channel == -1:  # prepare all channels
@@ -333,6 +358,8 @@ class ChannelPlot(PrepareData):
                 to_chan = chan_lst_viz.index(self._preproc_channel)
                 data_sl[[to_chan], :] = self._prepare_data(sf, data_sl[
                     [to_chan], :].copy(), time_sl)
+            
+        # print(data_sl.shape)
 
         # Set data to each plot :
         for l, (i, k) in enumerate(self):
@@ -342,6 +369,104 @@ class ChannelPlot(PrepareData):
 
             # Concatenate time / data / z axis :
             dat = np.vstack((time_sl, datchan, z)).T
+            ############################################################################################
+        
+            sound_data = dat[:,1] * 0.05
+            # print(data)
+            # print(sound_data[0:20])
+
+            # print(dat[:,0])
+            # print("-----------------------------------------------------------------------------")
+            # print(dat[:,1])
+            # print("-----------------------------------------------------------------------------")
+            # print(dat[:,2])
+            # print("-----------------------------------------------------------------------------")
+
+            # # sound_data = dat * 0.05
+
+            # print(dat.shape)
+
+
+            def clippy(sound_data, a_max):
+
+                clipped_data = np.zeros_like(sound_data)
+                np.clip(sound_data, a_min = None, a_max= a_max, out=clipped_data)
+                return clipped_data
+                
+
+            def no_static(sound_data, slope):
+                old_shape = sound_data.shape
+                old_size = sound_data.shape[0]
+                first_value = sound_data[0]
+                last_value = sound_data[sound_data.shape[0]-1]
+
+                
+                num_l_pad = np.abs(int(first_value*slope))
+                num_r_pad = np.abs(int(last_value*slope))
+                l_pad = np.linspace(0, sound_data[0], num = num_l_pad)
+                r_pad = np.linspace(last_value, 0, num = num_r_pad)
+                
+
+                new_shape = (int(l_pad.shape[0] + old_size + r_pad.shape[0]),  )
+                new_data = np.zeros(new_shape)
+            
+                new_data[l_pad.shape[0]:(old_size+l_pad.shape[0])] = sound_data
+                new_data[0:l_pad.shape[0]] = l_pad
+                new_data[(old_size+l_pad.shape[0]):new_shape[0]] = r_pad
+
+                return new_data 
+                 
+
+            def lpf(sound_data, fs, high_cutoff_freq):
+                b, a = scpsig.butter(N = 3, Wn = (high_cutoff_freq), btype='lowpass', analog = False, output='ba', fs = fs)
+                y = scpsig.lfilter(b, a, sound_data)
+                return y
+
+     
+            # ilip_data = clippy(sound_data, 20)
+
+                
+            # play_data = no_static(clippy(sound_data, 10), 100)
+            play_data = no_static(sound_data, 10)
+            # play_data = sound_data
+
+
+            old_min = play_data[np.argmin(play_data)]
+            old_max = play_data[np.argmax(play_data)]
+
+            new_min = -1
+            new_max = 1
+
+
+            # Map values from the original range to the new range
+            remapped_data = np.float32(((play_data - old_min) * (new_max - new_min) / (old_max - old_min) + new_min))
+
+
+            sample_rate = 44100
+            cutoff = 20000 # SAM Rate
+            # data_lpf = no_static(clippy(lpf(remapped_data, sample_rate, cutoff), 40), 100)
+            data_lpf = play_data
+            time_slice = time_sl[0]
+            # scpio.wavfile.write("outputs/%d.wav" % time_slice, rate=2205, data = data_lpf)
+
+
+            if l == 3: 
+                print('----')
+                # print(k.parent.parent.parent.parent)#parent_chain()) 
+                # img = k.parent.parent.parent.parent.canvas.SceneCanvas.render()
+                # print(self.parent_chain())
+                # img = k.scene_node.canvas.parent#render()
+                # print(img)
+                # io.write_png("wonderful.png",img)
+
+                sd.play(remapped_data, samplerate=2205)
+                import os
+                os.makedirs('outputs', exist_ok=True)
+                soundfile.write("outputs/%d.wav" % time_slice, remapped_data, samplerate=2205)
+
+
+
+            ############################################################################################
 
             # Set main ligne :
             k.set_data(dat, width=self.width)
@@ -356,6 +481,11 @@ class ChannelPlot(PrepareData):
             self._camera[i].rect = rect
             k.update()
             self.rect.append(rect)
+
+        img = dumbhack.changrid.parentWidget().grab().toImage()
+        img.save('not_wonderful.png', 'PNG')
+
+
 
     def set_location(self, sf, data, channel, start, end, factor=100.):
         """Set vertical lines for detections."""
@@ -403,6 +533,7 @@ class ChannelPlot(PrepareData):
         """Set parent value."""
         for i, k, in zip(value, self.mesh):
             k.parent = i.wc.scene
+            
 
     # ----------- AUTOAMP -----------
     @property
@@ -968,6 +1099,12 @@ class CanvasShortcuts(object):
             elif event.text.lower() == 'n':  # Next (slider)
                 self._SlGoto.setValue(
                     self._SlGoto.value() + self._SigSlStep.value())
+                time_slice = (self._SlGoto.value() - self._SigSlStep.value())
+                # print(time_slice)
+                tme.sleep(1)
+                pyautogui.screenshot("outputs/%d.png" % (time_slice))
+                
+ 
             elif event.text.lower() == 'b':  # Before (slider)
                 self._SlGoto.setValue(
                     self._SlGoto.value() - self._SigSlStep.value())
@@ -1143,7 +1280,7 @@ class Visuals(CanvasShortcuts):
                                  parent=self._chanCanvas,
                                  fcn=self._fcn_slider_move)
         PROFILER('Channels', level=1)
-
+        
         # =================== SPECTROGRAM ===================
         # Create a spectrogram object :
         self._spec = Spectrogram(camera=cameras[1],
@@ -1194,3 +1331,5 @@ class Visuals(CanvasShortcuts):
             CanvasShortcuts.__init__(self, k.canvas)
         self._shpopup.set_shortcuts(self.sh)
         PROFILER('Shortcuts', level=1)
+
+   
